@@ -358,6 +358,35 @@
       <SubType>Designer</SubType>
     </None>
   </ItemGroup>
+  <!-- Opt-in Release experiments. Default builds retain upstream settings. -->
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Xbox 360' and '$(UsbEnetExperiment)'!=''">
+    <OutDir>$(SolutionDir)Build\CUsbEnet\Experiments\$(UsbEnetExperiment)\Retail-$(UsbEnetTargetRetail)\</OutDir>
+    <IntDir>$(OutDir)obj\</IntDir>
+    <TargetExt>.dll</TargetExt>
+    <TargetPath>$(OutDir)CUsbEnet.dll</TargetPath>
+    <OutputFile>$(OutDir)CUsbEnet.dll</OutputFile>
+    <ImageXexOutput>$(OutDir)CUsbEnet-$(UsbEnetExperiment).xex</ImageXexOutput>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Xbox 360' and '$(UsbEnetExperiment)'!=''">
+    <ClCompile>
+      <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
+      <FavorSizeOrSpeed Condition="'$(UsbEnetExperiment)'=='Speed'">Speed</FavorSizeOrSpeed>
+      <PreprocessorDefinitions Condition="'$(UsbEnetExperiment)'=='Diagnostics'">USBENET_PERF_LOGGING=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(UsbEnetTargetRetail)'=='true'">DEVKIT_ONLY=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <ProgramDatabaseFile>$(OutDir)CUsbEnet.pdb</ProgramDatabaseFile>
+      <OutputFile>$(OutDir)CUsbEnet.dll</OutputFile>
+    </Link>
+    <Deploy>
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </Deploy>
+  </ItemDefinitionGroup>
+  <Target Name="ValidateUsbEnetExperiment" BeforeTargets="PrepareForBuild" Condition="'$(UsbEnetExperiment)'!=''">
+    <Error Condition="'$(Configuration)|$(Platform)'!='Release|Xbox 360'" Text="CUsbEnet experiments require Release|Xbox 360." />
+    <Error Condition="'$(UsbEnetExperiment)'!='Baseline' and '$(UsbEnetExperiment)'!='Speed' and '$(UsbEnetExperiment)'!='Diagnostics'" Text="UsbEnetExperiment must be Baseline, Speed, or Diagnostics." />
+    <Error Condition="'$(UsbEnetTargetRetail)'!='true' and '$(UsbEnetTargetRetail)'!='false'" Text="Set UsbEnetTargetRetail explicitly to true (retail) or false (devkit)." />
+  </Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
