@@ -1,6 +1,12 @@
 # Conservative CUsbEnet build experiment
 
-Status: built locally with VS 2022 RXDK, not deployed, not console-tested. No performance gain is claimed.
+The follow-up [USB 2 transmit scheduling experiment](usb2-tx-scan-experiment.md)
+adds an opt-in `TxScan` build based on Speed. The original experiments below
+retain their existing runtime behavior.
+
+Status: built locally with VS 2022 RXDK. The user subsequently reported that
+Baseline works and Speed transfers at roughly 19.8 versus 19.6 MiB/s. That is
+not yet a controlled performance result. The agent has not deployed any build.
 Base: proferabg/CUsbEnet main at 6b29507d1808d6e5a1716c85a94aa52ae84df8de;
 pinned xkelib a6353be8e81e1e5910f6b28183707caa75458c7c.
 
@@ -21,7 +27,7 @@ use Diagnostics results as a clean Speed comparison. DbgPrint requires a working
 debug capture path; FTP does not collect it. Do not install a debugger/plugin or
 pause the kernel simply to obtain these logs on the retail console.
 
-No runtime source changes: AX88179 TX aggregation remains disabled because the
+The three original experiments do not change runtime source behavior. AX88179 TX aggregation remains disabled because the
 upstream comment reports timing-sensitive XNet corruption. RX stays 48 x 16 KiB,
 TX stays 64 x 12 KiB, and maximum pending TX stays 24. Kernel hooks, addresses,
 USB queue settings, recovery logic, and dependency revision are unchanged.
@@ -84,14 +90,14 @@ Push-Location libraries/xkelib
 Pop-Location
 ```
 
-No installed VS/RXDK/SDK files were changed. No console runtime validation was
-performed. Build success does not establish exploit compatibility, data integrity,
-stability or improved throughput. Do not deploy these artifacts yet.
+No installed VS/RXDK/SDK files were changed. The agent has not performed console
+runtime validation; the user's subsequent observations are recorded above.
+Build success does not establish data integrity, stability or improved throughput.
 ## Recovery prerequisites before any later console test
 
 Kernel plugins cannot guarantee zero crashes, corruption, or risk. Optimization
 can expose timing or undefined-behavior issues even when source logic is unchanged.
-The current task authorizes source work only, not deployment.
+The agent builds locally and does not deploy to the console.
 
 Before considering a test, preserve the working XEX and exact launch.ini locally
 and on separate removable storage. Record hashes and original plugin paths/order.
@@ -109,7 +115,7 @@ loss or boot failure, stop testing and use the verified independent route to
 restore the original XEX path and launch.ini, then restart into the known working
 setup. Power cycling alone does not remove an auto-loaded faulty plugin.
 
-## Benchmark plan (future separately authorized console test)
+## Benchmark plan
 
 User-reported setup: retail dashboard 17559, UE306/AX88179, internal SSHD,
 ABadAvatar 1.3, Bad Storage 1.2 Unauthenticated, XeUnshackle.

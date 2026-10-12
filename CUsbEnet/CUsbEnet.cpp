@@ -429,6 +429,57 @@ static VOID QueueOrSubmitXmitTrackerLocked(CUsbEnet* Device, PXMIT_TRACKER Track
 	QueueXmitTrackerDpc(Tracker);
 }
 
+#if USBENET_TX_SCAN_OPTIMIZATION
+static BOOL HasQueuedOrWaitingXmitTracker(CUsbEnet* Device) {
+	for (DWORD Index = 0; Index < XMIT_BUFFER_COUNT; Index++) {
+		if ((Device->XmitTrackers[Index].Flags & (XMIT_FLAG_QUEUED | XMIT_FLAG_WAITING)) != 0)
+			return TRUE;
+	}
+	return FALSE;
+}
+
+static PXMIT_TRACKER FindNextReadyXmitTracker(CUsbEnet* Device, PXMIT_TRACKER StartAfter) {
+	// Caller holds NicLock. Active counts all occupied trackers; Pending counts
+	// the BUSY subset. Equality means there is no unsent tracker to find.
+	if (Device->ActiveXmitCount == Device->PendingXmitCount || Device->PendingXmitCount >= MaximumPendingXmitCount)
+		return NULL;
+
+	PXMIT_TRACKER Candidate = StartAfter;
+	PXMIT_TRACKER DebugOpen = NULL;
+	PXMIT_TRACKER TitleWaiting = NULL;
+	PXMIT_TRACKER TitleOpen = NULL;
+	BOOL AllowTitle = Device->PendingXmitCount < MaximumTitlePendingXmitCount;
+
+	// Remember the first candidate in each priority class in one circular pass.
+	// A waiting debug tracker always wins. An open debug aggregate is eligible
+	// only when the pipe is idle, just as in the original four-pass search.
+	for (DWORD Index = 0; Index < XMIT_BUFFER_COUNT; Index++) {
+		++Candidate;
+		if (Candidate >= &Device->XmitTrackers[XMIT_BUFFER_COUNT])
+			Candidate = &Device->XmitTrackers[0];
+
+		if (Candidate->FirstPacket == NULL || (Candidate->Flags & (XMIT_FLAG_BUSY | XMIT_FLAG_QUEUED)) != 0)
+			continue;
+
+		BOOL Waiting = (Candidate->Flags & XMIT_FLAG_WAITING) != 0;
+		if (IsDebugXmitTracker(Candidate)) {
+			if (Waiting)
+				return Candidate;
+			if (Device->PendingXmitCount == 0 && DebugOpen == NULL)
+				DebugOpen = Candidate;
+		} else if (AllowTitle) {
+			if (Waiting && TitleWaiting == NULL)
+				TitleWaiting = Candidate;
+			else if (!Waiting && TitleOpen == NULL)
+				TitleOpen = Candidate;
+		}
+	}
+
+	if (DebugOpen != NULL)
+		return DebugOpen;
+	return TitleWaiting != NULL ? TitleWaiting : TitleOpen;
+}
+#else
 static PXMIT_TRACKER FindReadyXmitTracker(CUsbEnet* Device, PXMIT_TRACKER StartAfter, BOOL DebugTracker, BOOL WaitingTracker) {
 	PXMIT_TRACKER Candidate = StartAfter;
 
@@ -455,6 +506,7 @@ static PXMIT_TRACKER FindReadyXmitTracker(CUsbEnet* Device, PXMIT_TRACKER StartA
 
 	return NULL;
 }
+#endif
 
 static DWORD ScheduleReadyXmitTrackers(CUsbEnet* Device, PXMIT_TRACKER StartAfter) {
 	if ((Device->Flags & (USBENET_STATE_RESETTING | USBENET_STATE_STOPPING)) != 0)
@@ -464,6 +516,9 @@ static DWORD ScheduleReadyXmitTrackers(CUsbEnet* Device, PXMIT_TRACKER StartAfte
 	PXMIT_TRACKER SearchStart = StartAfter;
 
 	for (;;) {
+#if USBENET_TX_SCAN_OPTIMIZATION
+		PXMIT_TRACKER Selected = FindNextReadyXmitTracker(Device, SearchStart);
+#else
 		PXMIT_TRACKER Selected = NULL;
 
 		if (Device->PendingXmitCount < MaximumPendingXmitCount) {
@@ -482,6 +537,7 @@ static DWORD ScheduleReadyXmitTrackers(CUsbEnet* Device, PXMIT_TRACKER StartAfte
 			if (Selected == NULL)
 				Selected = FindReadyXmitTracker(Device, SearchStart, FALSE, FALSE);
 		}
+#endif
 
 		if (Selected == NULL)
 			break;
@@ -1134,8 +1190,10 @@ VOID __fastcall CUsbEnet::NicXmit(CNicUser* User, DWORD Unknown, PVOID Buffer, D
 	PBYTE TrackerBuffer;
 	DWORD TrackerBufferLength;
 	DWORD TrackerFrameCount;
+#if !USBENET_TX_SCAN_OPTIMIZATION
 	DWORD ScheduledXmitCount;
 	DWORD WaitingXmitCount;
+#endif
 	DWORD AggregateOffset;
 	DWORD FramedLength;
 	DWORD BytesWritten;
@@ -1291,6 +1349,11 @@ VOID __fastcall CUsbEnet::NicXmit(CNicUser* User, DWORD Unknown, PVOID Buffer, D
 
 	TRAP_ASSERT(ActiveXmitCount < XMIT_BUFFER_COUNT);
 
+#if USBENET_TX_SCAN_OPTIMIZATION
+	// The original counts are used only as zero/nonzero tests. Short-circuit
+	// when latency or pending USB work already determines the same answer.
+	SubmitTracker = ImmediateLowLatency || (PendingXmitCount == 0 && !HasQueuedOrWaitingXmitTracker(this));
+#else
 	ScheduledXmitCount = PendingXmitCount;
 	WaitingXmitCount = 0;
 
@@ -1303,6 +1366,7 @@ VOID __fastcall CUsbEnet::NicXmit(CNicUser* User, DWORD Unknown, PVOID Buffer, D
 	}
 
 	SubmitTracker = ImmediateLowLatency || (ScheduledXmitCount == 0 && WaitingXmitCount == 0);
+#endif
 	++ActiveXmitCount;
 
 	if (ActiveXmitCount > TxTrackerHighWater)
