@@ -25,6 +25,11 @@
 #define USBENET_PERF_LOGGING 0
 #endif
 
+// Opt-in CPU-work reduction; does not change USB limits or packet ordering.
+#ifndef USBENET_TX_SCAN_OPTIMIZATION
+#define USBENET_TX_SCAN_OPTIMIZATION 0
+#endif
+
 #ifndef USBENET_CONNECTION_LOGGING
 #define USBENET_CONNECTION_LOGGING 0
 #endif

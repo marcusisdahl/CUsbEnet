@@ -36,15 +36,14 @@ For a reproducible comparison, record the driver commit and compile-time switche
 
 ## Main code and experimental branches
 
-The default `main` branch currently contains the upstream-derived baseline **driver code**. The performance changes below are on separate branches; updating this README does not merge them into `main`.
+The default `main` branch contains the upstream-derived baseline driver plus the reviewed conservative build options and optional TxScan scheduler. Default packet formats, RX/TX sizes, pending limits, kernel hooks, and original-AX88179 aggregation policy are preserved. The larger-buffer and aggregation work remains separate pending console validation.
 
 | Branch / work | Purpose |
 |---|---|
-| [`main`](https://github.com/marcusisdahl/CUsbEnet/tree/main) | Baseline driver implementation and repository overview |
-| [`experiment/conservative-build-performance`](https://github.com/marcusisdahl/CUsbEnet/tree/experiment/conservative-build-performance) | Separate Baseline, Speed, and Diagnostics build choices; size/speed compiler preference and optional logging |
-| [`experiment/usb2-tx-scheduler`](https://github.com/marcusisdahl/CUsbEnet/tree/experiment/usb2-tx-scheduler) | Opt-in reduction of redundant transmit-tracker scans |
-| [Throughput work / PR #1](https://github.com/marcusisdahl/CUsbEnet/pull/1) | Larger RX/TX buffers, batched receive delivery, and experimental AX88179 transmit aggregation |
-| [`claude/project-thread-hy4q3s`](https://github.com/marcusisdahl/CUsbEnet/tree/claude/project-thread-hy4q3s) | Further small-frame/ACK coalescing experiments, RX-size switches, CPU timing diagnostics, and TP-Link UE300 ID matching |
+| [`main`](https://github.com/marcusisdahl/CUsbEnet/tree/main) | Baseline driver, Baseline/Speed/Diagnostics build options, and opt-in TxScan scheduling |
+| [`claude/project-thread-hy4q3s`](https://github.com/marcusisdahl/CUsbEnet/tree/claude/project-thread-hy4q3s) | Larger RX/TX buffers, batched receive delivery, aggregation and ACK coalescing experiments, RX-size switches, CPU timing diagnostics, and TP-Link UE300 ID matching |
+
+The conservative branches are superseded by their integration into `main`. The earlier throughput branch and [draft PR #1](https://github.com/marcusisdahl/CUsbEnet/pull/1) are superseded by the newer throughput branch, which retains their history. See the [branch review](docs/branch-review-2026-10-13.md) for exact revisions, evidence, and cleanup decisions.
 
 Check the [branches](https://github.com/marcusisdahl/CUsbEnet/branches) and [pull requests](https://github.com/marcusisdahl/CUsbEnet/pulls) for their current status. Select the intended branch before building and keep the resulting XEX associated with its commit and settings.
 
@@ -128,7 +127,7 @@ git submodule update --init --recursive
 
 The Release image output is `Build\CUsbEnet\CUsbEnet.xex`. The project references import libraries from the `libraries/xkelib` submodule and an xkelib configuration named `Release21256.0`; dependency and target-kernel compatibility still need to match your environment.
 
-The conservative experiment branches additionally expose project properties such as `UsbEnetExperiment` and `UsbEnetTargetRetail`. These properties are branch-specific and are not substitutes for checking the plain `main` project's actual compiler definitions.
+On `main`, select an isolated build with `UsbEnetExperiment=Baseline`, `Speed`, `Diagnostics`, or `TxScan`, and explicitly set `UsbEnetTargetRetail=true` for the retail target or `false` for a matching devkit target. These opt-in builds exclude console deployment and write to `Build/CUsbEnet/Experiments/<Experiment>/Retail-<target>/`. With the properties omitted, the original project settings still apply. See the [build guide](docs/conservative-performance-experiment.md) and [TxScan guide](docs/usb2-tx-scan-experiment.md). The separate throughput branch does not contain these project properties.
 
 ### Diagnostic and experimental switches
 
@@ -139,7 +138,7 @@ These are compile-time settings; availability depends on the selected branch.
 | `USBENET_DEBUG` | `0` | Ordinary driver output; enabled logging can alter timing |
 | `USBENET_PERF_LOGGING` | `0` | Periodic performance counters; requires an actual debug-output capture route |
 | `USBENET_CONNECTION_LOGGING` | `0` | Extra connection diagnostics |
-| `USBENET_TX_SCAN_OPTIMIZATION` | `0` | Transmit-scan experiment on `experiment/usb2-tx-scheduler` |
+| `USBENET_TX_SCAN_OPTIMIZATION` | `0` | Optional transmit-scan optimization on `main`; enabled by the `TxScan` build option |
 | `USBENET_AX88179_TX_AGGREGATION` | `0` | Original-AX88179 aggregation experiment on the throughput branches |
 | `USBENET_COALESCE_TITLE_SMALL_FRAMES` | `0` | Small retail-title frame/ACK coalescing experiment on the later throughput branch |
 | `USBENET_TX_AGGREGATE_SMALL_ONLY` | `0` | Restricts experimental aggregation to small frames on the later throughput branch |
