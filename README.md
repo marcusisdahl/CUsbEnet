@@ -57,6 +57,7 @@ These compile-time switches live in `CUsbEnet/Main.h`:
 | `USBENET_DEBUG` | 0 | Ordinary driver output. Keep at 0 when measuring; debug output slows the driver. |
 | `USBENET_PERF_LOGGING` | 0 | Prints a five-second throughput summary (drops, USB transfer sizes, TX scheduling). |
 | `USBENET_AX88179_TX_AGGREGATION` | 0 | Experimental: several frames per USB transfer on the original AX88179. Only use it after full-data checks pass, for example with NetBench360's "All data" check. |
+| `USBENET_COALESCE_TITLE_SMALL_FRAMES` | 0 | Experimental, retail kernels: small title frames (mostly TCP ACKs during downloads to the Xbox) join an open transfer while other transmits are in flight, instead of each taking its own USB transfer. Needs transmit aggregation, so on the original AX88179 combine it with `USBENET_AX88179_TX_AGGREGATION`. |
 
 ## License
 

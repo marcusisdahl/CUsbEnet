@@ -30,6 +30,13 @@
 #define USBENET_AX88179_TX_AGGREGATION 0
 #endif
 
+// Experimental: on retail kernels, let small title frames (mostly TCP ACKs)
+// join an open transfer while other transmits are in flight instead of
+// always going out as their own USB transfer. Needs transmit aggregation.
+#ifndef USBENET_COALESCE_TITLE_SMALL_FRAMES
+#define USBENET_COALESCE_TITLE_SMALL_FRAMES 0
+#endif
+
 #ifndef USBENET_CONNECTION_LOGGING
 #define USBENET_CONNECTION_LOGGING 0
 #endif

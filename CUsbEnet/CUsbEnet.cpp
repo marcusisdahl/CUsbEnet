@@ -133,6 +133,13 @@ static BOOL IsDebugNicUser(CNicUser* User) {
 	return User != NULL && User->AttachInfo.ReceiveFilterMask == DebugReceiveFilterMask;
 }
 
+#if USBENET_COALESCE_TITLE_SMALL_FRAMES
+/* Small retail title frames still go out at once when the pipe is idle; with
+ * transfers in flight they aggregate and flush on the next TX completion. */
+static BOOL IsLowLatencyNicUser(CNicUser* User) {
+	return IsDebugNicUser(User);
+}
+#else
 static BOOL IsRetailTitleNicUser(CNicUser* User) {
 	return !Main::Devkit && User != NULL && User->AttachInfo.ReceiveFilterMask == TitleReceiveFilterMask;
 }
@@ -140,6 +147,7 @@ static BOOL IsRetailTitleNicUser(CNicUser* User) {
 static BOOL IsLowLatencyNicUser(CNicUser* User) {
 	return IsDebugNicUser(User) || IsRetailTitleNicUser(User);
 }
+#endif
 
 static BOOL IsDebugXmitTracker(PXMIT_TRACKER Tracker) {
 	return Tracker != NULL && Tracker->FirstPacket != NULL && IsDebugNicUser(Tracker->FirstPacket->User);
