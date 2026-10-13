@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 310" width="1000" height="310" font-family="Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1D2D45"/><stop offset="1" stop-color="#0F1725"/></linearGradient>
+    <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#8FA6BA"/></marker>
+  </defs>
+  <rect x="2" y="2" width="996" height="306" rx="28" fill="url(#bg)" stroke="#2A3D57" stroke-width="3"/>
+
+  <!-- PC -->
+  <rect x="34" y="112" width="150" height="116" rx="16" fill="#16243A" stroke="#2A3D57" stroke-width="2"/>
+  <text x="109" y="160" text-anchor="middle" font-size="22" font-weight="700" fill="#E6EEF5">PC</text>
+  <text x="109" y="188" text-anchor="middle" font-size="15" fill="#8FA6BA">FTP client</text>
+  <text x="109" y="208" text-anchor="middle" font-size="15" fill="#8FA6BA">(FileZilla...)</text>
+
+  <path d="M188 170 H252" stroke="#8FA6BA" stroke-width="2.5" marker-end="url(#ah)"/>
+  <text x="220" y="158" text-anchor="middle" font-size="13" fill="#8FA6BA">Ethernet</text>
+
+  <!-- Adapter -->
+  <rect x="258" y="112" width="160" height="116" rx="16" fill="#16243A" stroke="#73B8FF" stroke-width="2"/>
+  <text x="338" y="152" text-anchor="middle" font-size="19" font-weight="700" fill="#E6EEF5">USB Ethernet</text>
+  <text x="338" y="176" text-anchor="middle" font-size="19" font-weight="700" fill="#E6EEF5">adapter</text>
+  <text x="338" y="204" text-anchor="middle" font-size="14" fill="#8FA6BA">e.g. TP-Link UE306</text>
+
+  <path d="M422 170 H486" stroke="#8FA6BA" stroke-width="2.5" marker-end="url(#ah)"/>
+  <text x="454" y="158" text-anchor="middle" font-size="13" fill="#8FA6BA">USB 2.0</text>
+
+  <!-- Xbox -->
+  <rect x="492" y="40" width="476" height="236" rx="22" fill="none" stroke="#2A3D57" stroke-width="2.5" stroke-dasharray="0"/>
+  <text x="516" y="74" font-size="18" font-weight="700" fill="#8FA6BA">Xbox 360</text>
+
+  <rect x="516" y="112" width="128" height="116" rx="16" fill="#123A3A" stroke="#3ED9BC" stroke-width="2.5"/>
+  <text x="580" y="160" text-anchor="middle" font-size="20" font-weight="800" fill="#3ED9BC" font-style="italic">CUsbEnet</text>
+  <text x="580" y="186" text-anchor="middle" font-size="14" fill="#B7C7D6">driver plugin</text>
+  <text x="580" y="206" text-anchor="middle" font-size="14" fill="#B7C7D6">(launch.ini)</text>
+
+  <path d="M648 170 H696" stroke="#8FA6BA" stroke-width="2.5" marker-end="url(#ah)"/>
+
+  <rect x="702" y="112" width="108" height="116" rx="16" fill="#16243A" stroke="#2A3D57" stroke-width="2"/>
+  <text x="756" y="160" text-anchor="middle" font-size="19" font-weight="700" fill="#E6EEF5">Xbox</text>
+  <text x="756" y="184" text-anchor="middle" font-size="19" font-weight="700" fill="#E6EEF5">network</text>
+  <text x="756" y="208" text-anchor="middle" font-size="14" fill="#8FA6BA">(XNet)</text>
+
+  <path d="M814 170 H846" stroke="#8FA6BA" stroke-width="2.5" marker-end="url(#ah)"/>
+
+  <g font-size="15" font-weight="600">
+    <rect x="852" y="96" width="100" height="40" rx="12" fill="#16243A" stroke="#3ED9BC" stroke-width="2"/>
+    <text x="902" y="122" text-anchor="middle" fill="#E6EEF5">FastFTP</text>
+    <rect x="852" y="150" width="100" height="40" rx="12" fill="#16243A" stroke="#2A3D57" stroke-width="2"/>
+    <text x="902" y="176" text-anchor="middle" fill="#E6EEF5">Aurora</text>
+    <rect x="852" y="204" width="100" height="40" rx="12" fill="#16243A" stroke="#2A3D57" stroke-width="2"/>
+    <text x="902" y="230" text-anchor="middle" fill="#E6EEF5">Other apps</text>
+  </g>
+</svg>

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 300" width="1000" height="300" font-family="Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1D2D45"/><stop offset="1" stop-color="#0F1725"/></linearGradient></defs>
+  <rect x="2" y="2" width="996" height="296" rx="28" fill="url(#bg)" stroke="#2A3D57" stroke-width="3"/>
+  <text x="40" y="58" font-size="24" font-weight="700" fill="#E6EEF5">FTP upload speed, PC → Xbox</text>
+  <text x="40" y="86" font-size="16" fill="#8FA6BA">Same console and TP-Link UE306 adapter · MiB/s, higher is faster</text>
+  <!-- scale: x0=360, 0..30 MiB/s -> 0..560px -->
+  <g stroke="#2A3D57" stroke-width="1">
+    <line x1="360" y1="112" x2="360" y2="252"/><line x1="546.7" y1="112" x2="546.7" y2="252"/>
+    <line x1="733.3" y1="112" x2="733.3" y2="252"/><line x1="920" y1="112" x2="920" y2="252"/>
+  </g>
+  <g font-size="13" fill="#8FA6BA" text-anchor="middle">
+    <text x="360" y="272">0</text><text x="546.7" y="272">10</text><text x="733.3" y="272">20</text><text x="920" y="272">30</text>
+  </g>
+  <text x="340" y="150" text-anchor="end" font-size="17" font-weight="600" fill="#E6EEF5">Aurora's built-in FTP</text>
+  <text x="340" y="170" text-anchor="end" font-size="13" fill="#8FA6BA">CUsbEnet 1.0</text>
+  <path d="M360 140 H720 a4 4 0 0 1 4 4 V160 a4 4 0 0 1 -4 4 H360 Z" fill="#5B6B80"/>
+  <text x="736" y="158" font-size="17" font-weight="700" fill="#E6EEF5">19.5</text>
+  <text x="340" y="214" text-anchor="end" font-size="17" font-weight="600" fill="#E6EEF5">FastFTP</text>
+  <text x="340" y="234" text-anchor="end" font-size="13" fill="#8FA6BA">CUsbEnet 1.1 acksmall</text>
+  <path d="M360 204 H869.3 a4 4 0 0 1 4 4 V224 a4 4 0 0 1 -4 4 H360 Z" fill="#3ED9BC"/>
+  <text x="885" y="222" font-size="17" font-weight="700" fill="#E6EEF5">27.5</text>
+</svg>

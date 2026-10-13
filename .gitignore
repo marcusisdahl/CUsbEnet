@@ -2,7 +2,6 @@
 *.lib
 *.log
 *.user
-*.log
 *.TMP
 *.suo
 *.zip

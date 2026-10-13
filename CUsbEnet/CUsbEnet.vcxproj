@@ -341,6 +341,9 @@
     <ClCompile Include="Rtl8153.cpp" />
   </ItemGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='Xbox 360'">
+    <ClCompile>
+      <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
+    </ClCompile>
     <Link>
       <AdditionalDependencies>$(ProjectDir)..\libraries\xkelib\xamext.lib;$(ProjectDir)..\libraries\xkelib\kernelext.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
