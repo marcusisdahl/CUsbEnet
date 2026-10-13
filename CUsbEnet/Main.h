@@ -6,7 +6,7 @@
 #endif
 
 #ifndef VERSION_MINOR
-#define VERSION_MINOR 0
+#define VERSION_MINOR 1
 #endif
 
 #ifndef DEVKIT_ONLY
