@@ -127,7 +127,7 @@ DWORD CAx88178::GetMaximumFrameSize() const {
 }
 
 DWORD CAx88178::GetMaximumAggregateTransferSize() const {
-    return MaximumAggregateSize;
+    return LegacyXmitAggregateSize - sizeof(DWORD);
 }
 
 DWORD CAx88178::GetTransmitHeaderSize() const {

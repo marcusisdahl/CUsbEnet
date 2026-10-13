@@ -29,8 +29,10 @@
 CAx88179 g_Ax88179Chipset;
 CAx88178A g_Ax88178AChipset;
 
-/* Limit device-side RX aggregation to the existing 0x4000-byte receive buffers. */
-static BYTE Ax88179BulkInQueue[5] = { 7, 0x20, 3, 0x0E, 0xFF };
+/* USB 2.0 gigabit bulk-in profile from Linux ax88179_178a. The size byte
+ * limits device-side RX aggregation to 1024 * (0x16 + 2) = ReceiveBufferSize. */
+static BYTE Ax88179BulkInQueue[5] = { 7, 0x20, 3, 0x16, 0xFF };
+C_ASSERT(1024 * (0x16 + 2) == ReceiveBufferSize);
 static const BYTE Ax88179ChecksumControl = AX88179_CHECKSUM_IP | AX88179_CHECKSUM_TCP | AX88179_CHECKSUM_UDP | AX88179_CHECKSUM_TCPV6 | AX88179_CHECKSUM_UDPV6;
 static const BYTE Ax88179MonitorMode = AX88179_MONITOR_PMETYPE | AX88179_MONITOR_PMEPOL | AX88179_MONITOR_RWMP;
 static const BYTE Ax88179ReadTxFifoRequest = 0x81;
@@ -151,11 +153,13 @@ USHORT CAx88179::GetProductIdRaw() const {
 BOOL CAx88179::SupportsTransmitAggregation() const {
     /* The original AX88179 TX format is one 8-byte descriptor followed by one
      * Ethernet frame per USB bulk transfer.  Multi-record TX aggregation was
-     * experimental and becomes timing-sensitive when normal diagnostics are
-     * disabled, corrupting Netshare/XNet connections while USB still reports
-     * successful completions.  Keep multiple USB requests in flight, but do
-     * not place multiple Ethernet frames in a single AX88179 transfer. */
-    return FALSE;
+     * experimental and became timing-sensitive when normal diagnostics were
+     * disabled, corrupting Netshare/XNet connections while USB still reported
+     * successful completions.  That symptom matches the store-ordering race now
+     * closed by the __sync() in SubmitXmitTrackerLocked, so aggregation can be
+     * re-tested with USBENET_AX88179_TX_AGGREGATION=1. Verify every byte with
+     * NetBench360's full data check before trusting such a build. */
+    return USBENET_AX88179_TX_AGGREGATION != 0;
 }
 
 const char* CAx88178A::GetName() const {
@@ -183,7 +187,7 @@ DWORD CAx88179_178A::GetMaximumFrameSize() const {
 }
 
 DWORD CAx88179_178A::GetMaximumAggregateTransferSize() const {
-    return XmitBufferSize - 3;
+    return LegacyXmitAggregateSize - 3;
 }
 
 DWORD CAx88179_178A::GetTransmitHeaderSize() const {
@@ -1835,7 +1839,7 @@ DWORD CAx179AFamily::GetMaximumFrameSize() const {
 }
 
 DWORD CAx179AFamily::GetMaximumAggregateTransferSize() const {
-    return XmitBufferSize - sizeof(ULONGLONG);
+    return LegacyXmitAggregateSize - sizeof(ULONGLONG);
 }
 
 DWORD CAx179AFamily::GetTransmitHeaderSize() const {

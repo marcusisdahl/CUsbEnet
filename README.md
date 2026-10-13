@@ -48,6 +48,16 @@ Alternatively, the plugin can be loaded and unloaded after boot but may encounte
 | Realtek RTL8153 v3-v6 |
 | Realtek RTL8153B v8/v9 |
 
+## Build options for throughput testing
+
+These compile-time switches live in `CUsbEnet/Main.h`:
+
+| Switch | Default | Purpose |
+| --- | --- | --- |
+| `USBENET_DEBUG` | 0 | Ordinary driver output. Keep at 0 when measuring; debug output slows the driver. |
+| `USBENET_PERF_LOGGING` | 0 | Prints a five-second throughput summary (drops, USB transfer sizes, TX scheduling). |
+| `USBENET_AX88179_TX_AGGREGATION` | 0 | Experimental: several frames per USB transfer on the original AX88179. Only use it after full-data checks pass, for example with NetBench360's "All data" check. |
+
 ## License
 
 CUsbEnet is licensed under the GNU General Public License, version 2 only

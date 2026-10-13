@@ -754,6 +754,10 @@ VOID __fastcall CUsbEnet::CompleteReceive(PRECV_TRANSFER Packet, NTSTATUS Status
 	BOOL ResubmitPacket = TRUE;
 	BOOL NotifyLinkAfterReceive = FALSE;
 	USBENET_RX_PARSE_CONTEXT ParseContext;
+	USBENET_RX_DELIVERY Batch[ReceiveDeliveryBatchSize];
+	DWORD BatchCount;
+	CNicUser* NotifyUsers[ReceiveDeliveryMaximumUsers];
+	DWORD NotifyUserCount;
 
 	NicBaseTakeLockAtRaisedIrql(this);
 
@@ -816,6 +820,21 @@ VOID __fastcall CUsbEnet::CompleteReceive(PRECV_TRANSFER Packet, NTSTATUS Status
 		++RxInvalidFrameCount;
 		goto Complete;
 	}
+
+	/* Snapshot the attached users once per USB completion instead of once per
+	 * frame. NicLock is held here, and NicDetachUser cannot remove a user while
+	 * NicLock is held or a receive callback is in progress. */
+	NotifyUserCount = 0;
+	{
+		KIRQL UserListIrql = KfAcquireSpinLock(&m_UserListLock);
+
+		for (PLIST_ENTRY Entry = m_UserList.Flink; Entry != &m_UserList && NotifyUserCount < ARRAYSIZE(NotifyUsers); Entry = Entry->Flink)
+			NotifyUsers[NotifyUserCount++] = CONTAINING_RECORD(Entry, USB_ENET_USER_ENTRY, Link)->User;
+
+		KfReleaseSpinLock(&m_UserListLock, UserListIrql);
+	}
+
+	BatchCount = 0;
 
 	for (;;) {
 		USBENET_RX_FRAME ParsedFrame;
@@ -909,55 +928,21 @@ VOID __fastcall CUsbEnet::CompleteReceive(PRECV_TRANSFER Packet, NTSTATUS Status
 		++RxParsedFrameCount;
 		FrameBytesProcessed += frameLength;
 
-		DWORD DestinationFlag = 1u << static_cast<DWORD>(destination);
-		CNicUser* NotifyUsers[16];
-		DWORD NotifyUserCount = 0;
-		KIRQL UserListIrql = KfAcquireSpinLock(&m_UserListLock);
+		Batch[BatchCount].Frame = frame;
+		Batch[BatchCount].Length = frameLength;
+		Batch[BatchCount].Destination = destination;
 
-		for (PLIST_ENTRY Entry = m_UserList.Flink; Entry != &m_UserList && NotifyUserCount < ARRAYSIZE(NotifyUsers); Entry = Entry->Flink) {
-			PUSB_ENET_USER_ENTRY UserEntry = CONTAINING_RECORD(Entry, USB_ENET_USER_ENTRY, Link);
-			CNicUser* User = UserEntry->User;
+		if (++BatchCount == ARRAYSIZE(Batch)) {
+			DeliverReceiveBatch(Batch, BatchCount, NotifyUsers, NotifyUserCount);
+			BatchCount = 0;
 
-			if ((User->AttachInfo.ReceiveFilterMask & DestinationFlag) != 0)
-				NotifyUsers[NotifyUserCount++] = User;
+			if ((Flags & USBENET_STATE_NOTIFY_LINK_STATE) != 0)
+				NotifyLinkAfterReceive = TRUE;
 		}
+	}
 
-		KfReleaseSpinLock(&m_UserListLock, UserListIrql);
-
-		if (NotifyUserCount == 0) {
-			++RxNoDeliveryFrameCount;
-			continue;
-		}
-
-		/* A link-state callback may be running on another processor. Do not enter
-		 * XAM concurrently; discard this frame rather than racing its IP reset. */
-		if ((Flags & USBENET_STATE_00100000) != 0) {
-			++RxNoDeliveryFrameCount;
-			continue;
-		}
-
-		for (DWORD Index = 0; Index < NotifyUserCount; Index++) {
-			if (IsDebugNicUser(NotifyUsers[Index]))
-				++RxDebugDeliveredCount;
-			else
-				++RxTitleDeliveredCount;
-		}
-
-		Flags |= USBENET_STATE_CALLBACK_IN_PROGRESS;
-
-		TRAP_ASSERT(PreviousIrql == 0xEE);
-		TRAP_THREAD(LockOwnerThread);
-
-		NULL_OWNER_THREAD(this);
-		KeReleaseSpinLockFromRaisedIrql(&NicLock);
-
-		for (DWORD Index = 0; Index < NotifyUserCount; Index++)
-			NotifyUsers[Index]->NotifyReceive(frame, frameLength, destination);
-
-		NicBaseTakeLockAtRaisedIrql(this);
-
-		TRAP_ASSERT((Flags & USBENET_STATE_CALLBACK_IN_PROGRESS) != 0);
-		Flags &= ~USBENET_STATE_CALLBACK_IN_PROGRESS;
+	if (BatchCount != 0) {
+		DeliverReceiveBatch(Batch, BatchCount, NotifyUsers, NotifyUserCount);
 
 		if ((Flags & USBENET_STATE_NOTIFY_LINK_STATE) != 0)
 			NotifyLinkAfterReceive = TRUE;
@@ -986,6 +971,66 @@ Complete:
 
 	if (NotifyLinkAfterReceive)
 		NotifyLinkStateChangedToUsers();
+}
+
+/* Called with NicLock held at raised IRQL and returns with it held. NicLock is
+ * dropped once for the whole batch while frames are handed to XNet. */
+VOID __fastcall CUsbEnet::DeliverReceiveBatch(PUSBENET_RX_DELIVERY Batch, DWORD BatchCount, CNicUser** Users, DWORD UserCount) {
+	DWORD DeliverableCount = 0;
+
+	/* A link-state callback may be running on another processor. Do not enter
+	 * XAM concurrently; discard these frames rather than racing its IP reset. */
+	if ((Flags & USBENET_STATE_00100000) != 0) {
+		RxNoDeliveryFrameCount += BatchCount;
+		return;
+	}
+
+	for (DWORD FrameIndex = 0; FrameIndex < BatchCount; FrameIndex++) {
+		DWORD DestinationFlag = 1u << static_cast<DWORD>(Batch[FrameIndex].Destination);
+		DWORD MatchCount = 0;
+
+		for (DWORD Index = 0; Index < UserCount; Index++) {
+			if ((Users[Index]->AttachInfo.ReceiveFilterMask & DestinationFlag) == 0)
+				continue;
+
+			++MatchCount;
+
+			if (IsDebugNicUser(Users[Index]))
+				++RxDebugDeliveredCount;
+			else
+				++RxTitleDeliveredCount;
+		}
+
+		if (MatchCount == 0)
+			++RxNoDeliveryFrameCount;
+		else
+			++DeliverableCount;
+	}
+
+	if (DeliverableCount == 0)
+		return;
+
+	Flags |= USBENET_STATE_CALLBACK_IN_PROGRESS;
+
+	TRAP_ASSERT(PreviousIrql == 0xEE);
+	TRAP_THREAD(LockOwnerThread);
+
+	NULL_OWNER_THREAD(this);
+	KeReleaseSpinLockFromRaisedIrql(&NicLock);
+
+	for (DWORD FrameIndex = 0; FrameIndex < BatchCount; FrameIndex++) {
+		DWORD DestinationFlag = 1u << static_cast<DWORD>(Batch[FrameIndex].Destination);
+
+		for (DWORD Index = 0; Index < UserCount; Index++) {
+			if ((Users[Index]->AttachInfo.ReceiveFilterMask & DestinationFlag) != 0)
+				Users[Index]->NotifyReceive(Batch[FrameIndex].Frame, Batch[FrameIndex].Length, Batch[FrameIndex].Destination);
+		}
+	}
+
+	NicBaseTakeLockAtRaisedIrql(this);
+
+	TRAP_ASSERT((Flags & USBENET_STATE_CALLBACK_IN_PROGRESS) != 0);
+	Flags &= ~USBENET_STATE_CALLBACK_IN_PROGRESS;
 }
 
 VOID __fastcall CUsbEnet::CompleteStartReceiving(NTSTATUS Status) {
@@ -1134,13 +1179,12 @@ VOID __fastcall CUsbEnet::NicXmit(CNicUser* User, DWORD Unknown, PVOID Buffer, D
 	PBYTE TrackerBuffer;
 	DWORD TrackerBufferLength;
 	DWORD TrackerFrameCount;
-	DWORD ScheduledXmitCount;
-	DWORD WaitingXmitCount;
 	DWORD AggregateOffset;
 	DWORD FramedLength;
 	DWORD BytesWritten;
 	DWORD SubmitFrameLimit;
 	BOOL SubmitTracker;
+	BOOL XmitBacklog;
 	BOOL SequentialPacket;
 	BOOL HasTerminator;
 	BOOL FrameAppended;
@@ -1291,18 +1335,16 @@ VOID __fastcall CUsbEnet::NicXmit(CNicUser* User, DWORD Unknown, PVOID Buffer, D
 
 	TRAP_ASSERT(ActiveXmitCount < XMIT_BUFFER_COUNT);
 
-	ScheduledXmitCount = PendingXmitCount;
-	WaitingXmitCount = 0;
+	/* Submit at once only when nothing is in flight, queued or waiting. Stop
+	 * scanning at the first busy tracker: this runs for every new tracker. */
+	XmitBacklog = PendingXmitCount != 0;
 
-	for (DWORD Index = 0; Index < XMIT_BUFFER_COUNT; Index++) {
-		if ((XmitTrackers[Index].Flags & XMIT_FLAG_QUEUED) != 0)
-			++ScheduledXmitCount;
-
-		if ((XmitTrackers[Index].Flags & XMIT_FLAG_WAITING) != 0)
-			++WaitingXmitCount;
+	for (DWORD Index = 0; !XmitBacklog && Index < XMIT_BUFFER_COUNT; Index++) {
+		if ((XmitTrackers[Index].Flags & (XMIT_FLAG_QUEUED | XMIT_FLAG_WAITING)) != 0)
+			XmitBacklog = TRUE;
 	}
 
-	SubmitTracker = ImmediateLowLatency || (ScheduledXmitCount == 0 && WaitingXmitCount == 0);
+	SubmitTracker = ImmediateLowLatency || !XmitBacklog;
 	++ActiveXmitCount;
 
 	if (ActiveXmitCount > TxTrackerHighWater)
@@ -1344,7 +1386,7 @@ FillFrame:
 
 	if (ImmediateLowLatency)
 		SubmitTracker = TRUE;
-	else if (!SubmitTracker && (Tracker->Flags & (XMIT_FLAG_WAITING | XMIT_FLAG_BUSY | XMIT_FLAG_QUEUED)) == 0 && (TrackerBufferLength >= XmitSubmitThreshold || TrackerFrameCount >= SubmitFrameLimit))
+	else if (!SubmitTracker && (Tracker->Flags & (XMIT_FLAG_WAITING | XMIT_FLAG_BUSY | XMIT_FLAG_QUEUED)) == 0 && (TrackerBufferLength + XmitSubmitHeadroom > Chipset->GetMaximumAggregateTransferSize() || TrackerFrameCount >= SubmitFrameLimit))
 		SubmitTracker = TRUE;
 
 	TRAP_ASSERT(User != NULL);
@@ -2487,7 +2529,7 @@ VOID __fastcall CUsbEnet::Init(PUSBD_DEVICE_NODE DeviceNode, const PUSB_ENDPOINT
 		g_UsbEnetInterruptTransfer.BufferLength = InterruptStatusBufferSize;
 	}
 
-	DbgPrint("[usbenet]: Buffer layout: RX=%u x %u bytes, TX=%u x %u bytes, TX aggregate=%u bytes, submit=%u bytes/%u title frames, pending=%u titlePending=%u, XBDM <=%u bytes immediate/>%u bytes aggregate up to %u frames, DMA=%u bytes\n", RECV_PACKET_COUNT, ReceiveBufferSize, XMIT_BUFFER_COUNT, XmitBufferSize, MaximumAggregateSize, XmitSubmitThreshold, MaximumFramesPerXmit, MaximumPendingXmitCount, MaximumTitlePendingXmitCount, DebugImmediateFrameSize, DebugImmediateFrameSize, MaximumDebugFramesPerXmit, DmaBufferSize);
+	DbgPrint("[usbenet]: Buffer layout: RX=%u x %u bytes, TX=%u x %u bytes, TX aggregate=%u bytes, submit headroom=%u bytes/%u title frames, pending=%u titlePending=%u, XBDM <=%u bytes immediate/>%u bytes aggregate up to %u frames, DMA=%u bytes\n", RECV_PACKET_COUNT, ReceiveBufferSize, XMIT_BUFFER_COUNT, XmitBufferSize, MaximumAggregateSize, XmitSubmitHeadroom, MaximumFramesPerXmit, MaximumPendingXmitCount, MaximumTitlePendingXmitCount, DebugImmediateFrameSize, DebugImmediateFrameSize, MaximumDebugFramesPerXmit, DmaBufferSize);
 
 	for (ULONG Index = 0; Index < XMIT_BUFFER_COUNT; Index++) {
 		ULONG BufferOffset = XmitBufferOffset + Index * XmitBufferSize;

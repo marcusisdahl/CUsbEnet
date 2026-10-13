@@ -25,6 +25,11 @@
 #define USBENET_PERF_LOGGING 0
 #endif
 
+// Experimental: place several frames in one original-AX88179 bulk transfer.
+#ifndef USBENET_AX88179_TX_AGGREGATION
+#define USBENET_AX88179_TX_AGGREGATION 0
+#endif
+
 #ifndef USBENET_CONNECTION_LOGGING
 #define USBENET_CONNECTION_LOGGING 0
 #endif

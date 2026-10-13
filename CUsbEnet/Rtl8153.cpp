@@ -448,7 +448,7 @@ VOID CRtl8153::AdvanceInitStage(CUsbEnet* Device) {
 
         case Rtl8153InitWriteRxEarlySize: {
             DWORD Reserved = StandardFrameLimit + EthernetFcsLength + sizeof(RTL8153_RX_DESCRIPTOR) + RxAlignment;
-            DWORD Available = ReceiveBufferSize > Reserved ? ReceiveBufferSize - Reserved : 0;
+            DWORD Available = LegacyReceiveAggregateSize > Reserved ? LegacyReceiveAggregateSize - Reserved : 0;
             USHORT Divisor = (m_HardwareVersion == 0x6000 || m_HardwareVersion == 0x6010) ? 8 : 4;
             Status = QueueWriteWord(Device, Rtl8153RegisterUsb, UsbRxEarlySize, static_cast<USHORT>(Available / Divisor));
             break;
