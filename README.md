@@ -6,7 +6,7 @@ CUsbEnet lets a supported USB Ethernet adapter provide networking through the Xb
 
 This is a fork of [proferabg/CUsbEnet](https://github.com/proferabg/CUsbEnet), which ports the early Xbox 360 USB Ethernet driver and extends chipset support and XNet integration. Upstream attribution, GPL notices, and hardware-driver provenance are retained.
 
-**Reported result:** the maintainer reports **29.1 MiB/s with a TP-Link UE306 USB Ethernet adapter**. That is approximately **30.5 MB/s / 244.1 Mbit/s** of transferred data. See [measurement context](#reported-performance) before comparing it with another setup.
+**Reported result:** the maintainer reports **29.1 MiB/s FTP uploads from PC → Xbox using a TP-Link UE306 USB Ethernet adapter**. That is approximately **30.5 MB/s / 244.1 Mbit/s** of transferred data. See [measurement context](#reported-performance) before comparing it with another setup.
 
 ## What it does
 
@@ -25,8 +25,8 @@ A compatible adapter may negotiate a gigabit Ethernet link, but the Xbox's USB c
 | Adapter | **TP-Link UE306**, using the AX88179-based setup reported by the maintainer |
 | Final reported rate | **29.1 MiB/s** |
 | Decimal equivalents | Approximately **30.5 MB/s**, or **244.1 Mbit/s** |
-| Test application / method | Not specified in the report |
-| Direction | Not specified in the report |
+| Test application / method | **FTP file upload**; FTP client/server versions not recorded |
+| Direction | **PC → Xbox** |
 | Driver revision / configuration | Exact driver commit and build switches not recorded |
 | Evidence | Maintainer-reported result, recorded **13 October 2026** |
 
