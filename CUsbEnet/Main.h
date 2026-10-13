@@ -25,6 +25,42 @@
 #define USBENET_PERF_LOGGING 0
 #endif
 
+// Experimental: place several frames in one original-AX88179 bulk transfer.
+#ifndef USBENET_AX88179_TX_AGGREGATION
+#define USBENET_AX88179_TX_AGGREGATION 0
+#endif
+
+// Experimental: on retail kernels, let small title frames (mostly TCP ACKs)
+// join an open transfer while other transmits are in flight instead of
+// always going out as their own USB transfer. Needs transmit aggregation.
+#ifndef USBENET_COALESCE_TITLE_SMALL_FRAMES
+#define USBENET_COALESCE_TITLE_SMALL_FRAMES 0
+#endif
+
+// Experimental: only frames up to DebugImmediateFrameSize (TCP ACKs and other
+// small frames) may share a USB transfer; full-size frames always go out one
+// per transfer. Limits transmit aggregation to the case downloads need.
+#ifndef USBENET_TX_AGGREGATE_SMALL_ONLY
+#define USBENET_TX_AGGREGATE_SMALL_ONLY 0
+#endif
+
+// Experimental: AX88179 bulk-in profile with size byte 0x18 (26 KiB RX
+// transfers) instead of 0x16 (24 KiB). 0x18 is used by Linux ax88179_178a's
+// 100/10 Mbps profiles; fewer, larger RX completions per MiB.
+#ifndef USBENET_AX88179_RX_26K
+#define USBENET_AX88179_RX_26K 0
+#endif
+
+// Untested on this chip: bulk-in size byte 0x1E (32 KiB RX transfers), beyond
+// any Linux ax88179_178a profile. Verify with NetBench360's full data check.
+#ifndef USBENET_AX88179_RX_32K_UNTESTED
+#define USBENET_AX88179_RX_32K_UNTESTED 0
+#endif
+
+#if USBENET_AX88179_RX_26K && USBENET_AX88179_RX_32K_UNTESTED
+#error Choose at most one AX88179 RX transfer size.
+#endif
+
 #ifndef USBENET_CONNECTION_LOGGING
 #define USBENET_CONNECTION_LOGGING 0
 #endif

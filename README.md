@@ -34,27 +34,40 @@ This is a result from one setup, not a guaranteed rate for every adapter, consol
 
 For a reproducible comparison, record the driver commit and compile-time switches, console kernel, adapter hardware/USB IDs, transfer direction, application/version, file size or benchmark duration, stream count, rate cap, and integrity-check result. Use several completed runs and compare medians; a momentary peak or interrupted run is not a final throughput result.
 
-## Main code and experimental branches
+## Branches
 
-The default `main` branch currently contains the upstream-derived baseline **driver code**. The performance changes below are on separate branches; updating this README does not merge them into `main`.
+`main` contains the console-tested throughput work: 24 KiB AX88179 receive transfers, 16 KiB transmit buffers, batched receive delivery and a cheaper transmit scan (from [PR #1](https://github.com/marcusisdahl/CUsbEnet/pull/1)), plus the opt-in switches, CPU timing diagnostics and TP-Link UE300 ID from the later throughput branch. Every experimental switch is **off** by default, so a plain build of `main` behaves like PR #1.
 
-| Branch / work | Purpose |
+| Branch | Status |
 |---|---|
-| [`main`](https://github.com/marcusisdahl/CUsbEnet/tree/main) | Baseline driver implementation and repository overview |
-| [`experiment/conservative-build-performance`](https://github.com/marcusisdahl/CUsbEnet/tree/experiment/conservative-build-performance) | Separate Baseline, Speed, and Diagnostics build choices; size/speed compiler preference and optional logging |
-| [`experiment/usb2-tx-scheduler`](https://github.com/marcusisdahl/CUsbEnet/tree/experiment/usb2-tx-scheduler) | Opt-in reduction of redundant transmit-tracker scans |
-| [Throughput work / PR #1](https://github.com/marcusisdahl/CUsbEnet/pull/1) | Larger RX/TX buffers, batched receive delivery, and experimental AX88179 transmit aggregation |
-| [`claude/project-thread-hy4q3s`](https://github.com/marcusisdahl/CUsbEnet/tree/claude/project-thread-hy4q3s) | Further small-frame/ACK coalescing experiments, RX-size switches, CPU timing diagnostics, and TP-Link UE300 ID matching |
+| [`main`](https://github.com/marcusisdahl/CUsbEnet/tree/main) | Current driver. Build this unless you are testing an experiment. |
+| [`claude/project-thread-hy4q3s`](https://github.com/marcusisdahl/CUsbEnet/tree/claude/project-thread-hy4q3s) | Merged into `main` on 13 October 2026. Kept open for further driver experiments. |
 
-Check the [branches](https://github.com/marcusisdahl/CUsbEnet/branches) and [pull requests](https://github.com/marcusisdahl/CUsbEnet/pulls) for their current status. Select the intended branch before building and keep the resulting XEX associated with its commit and settings.
+Removed on 13 October 2026 (restore with `git push origin <sha>:refs/heads/<name>`):
 
-In the baseline code, RX uses **48 × 16 KiB** buffers, TX uses **64 × 12 KiB** buffers, and the pending transmit limit is **24**, with one slot reserved from title traffic. The newer throughput branch changes buffer/receive-delivery behavior; those changes are not descriptions of `main`.
+| Former branch | Head commit | Why it was removed |
+|---|---|---|
+| `claude/project-thread-0n0gng` (PR #1) | `69f23478e6dd9a7aac63c9adf22edab5cf21119f` | Fully merged into `main` |
+| `experiment/usb2-tx-scheduler` | `cc34dcdb9a455f92f501e1cab861b4f135586f65` | TxScan experiment; froze the console on Xbox → PC transfers, superseded by PR #1's transmit scan |
+| `experiment/conservative-build-performance` | `63ffb57f22395f071a2f4b0544c1ef4c34e3a0ed` | Build-profile experiment with no code changes; never console-tested |
+
+### ACK batching ("acksmall") build
+
+The maintainer's everyday UE306 driver is `main` built with these switches on, in addition to `DEVKIT_ONLY=0` for a retail kernel:
+
+```text
+USBENET_AX88179_TX_AGGREGATION=1
+USBENET_COALESCE_TITLE_SMALL_FRAMES=1
+USBENET_TX_AGGREGATE_SMALL_ONLY=1
+```
+
+Only TCP ACKs and other small frames share a USB transfer; full-size frames still go one per transfer. It reached **27.66 MiB/s PC → Xbox** with NetBench360's All data check. **Still open:** an unlimited Xbox → PC run with All data. A freeze was seen in that direction, and its cause is not yet known. Full transmit aggregation (`USBENET_AX88179_TX_AGGREGATION=1` alone) froze the console and should not be used.
 
 ### Original AX88179 transmit aggregation
 
-The baseline deliberately keeps multi-frame TX aggregation **off** on the original AX88179. Its source documents timing-sensitive XNet/Netshare corruption from earlier aggregation experiments.
+The default build keeps multi-frame TX aggregation **off** on the original AX88179. Its source documents timing-sensitive XNet/Netshare corruption from earlier aggregation experiments.
 
-Performance branches expose opt-in switches for further investigation. Their presence is not proof that aggregation is stable. Branch history also records a console freeze during a full-size aggregated transmit experiment. Keep these experimental defaults off for an initial control, preserve a working build, and validate complete data and both directions before relying on an experimental configuration. A single pre-test check or higher speed does not establish correctness.
+The opt-in switches below are for further investigation. Their presence is not proof that aggregation is stable. Testing also recorded a console freeze during a full-size aggregated transmit experiment. Keep these experimental defaults off for an initial control, preserve a working build, and validate complete data and both directions before relying on an experimental configuration. A single pre-test check or higher speed does not establish correctness.
 
 ## Adapter support
 
@@ -73,7 +86,7 @@ Support depends on the adapter's **chipset, USB IDs, hardware revision, and driv
 
 [TP-Link's UE306 V1 specification](https://www.tp-link.com/us/home-networking/usb-converter/ue306/v1/) identifies an **AX88179** chipset. Verify the actual device revision; similarly named products and later revisions can differ.
 
-The additional TP-Link **UE300 ID `2357:0601`** is mapped to the RTL8153 backend on `claude/project-thread-hy4q3s`. That additional ID mapping is not currently in the baseline `main` code. Generic support for a chipset does not imply that every rebranded USB ID is recognized.
+RTL8153 adapters are matched under Realtek's ID (`0BDA:8153`) and TP-Link's UE300 ID (`2357:0601`). Generic support for a chipset does not imply that every rebranded USB ID is recognized.
 
 ## Kernel and build compatibility
 
@@ -128,23 +141,20 @@ git submodule update --init --recursive
 
 The Release image output is `Build\CUsbEnet\CUsbEnet.xex`. The project references import libraries from the `libraries/xkelib` submodule and an xkelib configuration named `Release21256.0`; dependency and target-kernel compatibility still need to match your environment.
 
-The conservative experiment branches additionally expose project properties such as `UsbEnetExperiment` and `UsbEnetTargetRetail`. These properties are branch-specific and are not substitutes for checking the plain `main` project's actual compiler definitions.
-
 ### Diagnostic and experimental switches
 
-These are compile-time settings; availability depends on the selected branch.
+These are compile-time settings in `CUsbEnet/Main.h`.
 
 | Switch | Default | Purpose / availability |
 |---|---|---|
 | `USBENET_DEBUG` | `0` | Ordinary driver output; enabled logging can alter timing |
 | `USBENET_PERF_LOGGING` | `0` | Periodic performance counters; requires an actual debug-output capture route |
 | `USBENET_CONNECTION_LOGGING` | `0` | Extra connection diagnostics |
-| `USBENET_TX_SCAN_OPTIMIZATION` | `0` | Transmit-scan experiment on `experiment/usb2-tx-scheduler` |
-| `USBENET_AX88179_TX_AGGREGATION` | `0` | Original-AX88179 aggregation experiment on the throughput branches |
-| `USBENET_COALESCE_TITLE_SMALL_FRAMES` | `0` | Small retail-title frame/ACK coalescing experiment on the later throughput branch |
-| `USBENET_TX_AGGREGATE_SMALL_ONLY` | `0` | Restricts experimental aggregation to small frames on the later throughput branch |
-| `USBENET_AX88179_RX_26K` | `0` | Experimental 26 KiB AX88179 RX transfers on the later throughput branch |
-| `USBENET_AX88179_RX_32K_UNTESTED` | `0` | Explicitly unvalidated 32 KiB AX88179 RX option on the later throughput branch |
+| `USBENET_AX88179_TX_AGGREGATION` | `0` | Original-AX88179 aggregation experiment |
+| `USBENET_COALESCE_TITLE_SMALL_FRAMES` | `0` | Small retail-title frame/ACK coalescing experiment |
+| `USBENET_TX_AGGREGATE_SMALL_ONLY` | `0` | Restricts experimental aggregation to small frames |
+| `USBENET_AX88179_RX_26K` | `0` | Experimental 26 KiB AX88179 RX transfers |
+| `USBENET_AX88179_RX_32K_UNTESTED` | `0` | Explicitly unvalidated 32 KiB AX88179 RX option |
 
 The RX-size overrides are mutually exclusive. Aggregation/coalescing switches have chipset and interaction constraints; inspect the selected branch's source before configuring them. This table documents available research controls, not a recommended set of switches for reproducing the 29.1 MiB/s report.
 

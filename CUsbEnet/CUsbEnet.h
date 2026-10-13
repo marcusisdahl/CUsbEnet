@@ -7,17 +7,32 @@ enum {
     XMIT_TRACKER_COUNT = 64,
     XMIT_BUFFER_COUNT = XMIT_TRACKER_COUNT,
     XMIT_PACKET_COUNT = 80,
-    ReceiveBufferSize = 0x4000,
-    XmitBufferSize = 0x3000,
+    // 24 KiB matches the Linux ax88179_178a USB 2.0 gigabit bulk-in profile
+    // (rx_urb_size = 1024 * (0x16 + 2)); fewer, fuller RX completions per MiB.
+    // The experimental AX88179 RX size switches enlarge it to match.
+#if USBENET_AX88179_RX_32K_UNTESTED
+    ReceiveBufferSize = 0x8000,
+#elif USBENET_AX88179_RX_26K
+    ReceiveBufferSize = 0x6800,
+#else
+    ReceiveBufferSize = 0x6000,
+#endif
+    // Chipsets whose hardware RX aggregation is tuned for the original buffers.
+    LegacyReceiveAggregateSize = 0x4000,
+    // 16 KiB TX buffers match the Linux r8152 aggregate size. Chipsets whose TX
+    // aggregation limit is unverified keep the original 12 KiB aggregate.
+    XmitBufferSize = 0x4000,
+    LegacyXmitAggregateSize = 0x3000,
     XmitBufferOffset = RECV_PACKET_COUNT * ReceiveBufferSize,
     DmaBufferSize = XmitBufferOffset + XMIT_BUFFER_COUNT * XmitBufferSize,
     ControlScratchBufferSize = 8,
     InterruptStatusBufferSize = 8,
     InterruptStatusBufferOffset = DmaBufferSize + ControlScratchBufferSize,
     PhysicalBufferSize = InterruptStatusBufferOffset + InterruptStatusBufferSize,
-    MaximumAggregateSize = 0x2FFC,
-    XmitSubmitThreshold = 0x2C00,
-    MaximumFramesPerXmit = 8,
+    MaximumAggregateSize = 0x3FFC,
+    // Submit an open aggregate once another full-size frame might not fit.
+    XmitSubmitHeadroom = 0x600,
+    MaximumFramesPerXmit = 10,
     MaximumDebugFramesPerXmit = 8,
     DebugImmediateFrameSize = 256,
     MaximumPendingXmitCount = 24,
@@ -134,6 +149,17 @@ typedef struct _XMIT_PACKET {
 } XMIT_PACKET;
 C_ASSERT(sizeof(XMIT_PACKET) == 0x10);
 
+enum {
+    ReceiveDeliveryBatchSize = 32,
+    ReceiveDeliveryMaximumUsers = 16
+};
+
+typedef struct _USBENET_RX_DELIVERY {
+    PBYTE Frame;
+    DWORD Length;
+    NIC_RECV_DEST Destination;
+} USBENET_RX_DELIVERY, *PUSBENET_RX_DELIVERY;
+
 typedef struct _RECV_TRANSFER {
     USBD_TRANSFER_REQUEST Transfer;	// 0x00
     ULONG InFlight;		            // 0x20
@@ -194,6 +220,7 @@ public:
     VOID        __fastcall CompleteControlTransfer();
     VOID        __fastcall ControlSwitchProcs();
     VOID        __fastcall CompleteReceive(PRECV_TRANSFER Packet, NTSTATUS Status);
+    VOID        __fastcall DeliverReceiveBatch(PUSBENET_RX_DELIVERY Batch, DWORD BatchCount, CNicUser** Users, DWORD UserCount);
     VOID        __fastcall CompleteStartReceiving(NTSTATUS Status);
     VOID        __fastcall CompleteTransmit(PXMIT_TRACKER Tracker, NTSTATUS Status);
     VOID        __fastcall BulkXmitSwitchProcs(PXMIT_TRACKER Tracker);

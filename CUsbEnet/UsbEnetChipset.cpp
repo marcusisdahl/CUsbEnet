@@ -38,6 +38,11 @@ CUsbEnetChipset* UsbEnetFindChipset(USHORT VendorIdRaw, USHORT ProductIdRaw, USH
     if (VendorIdRaw == g_Rtl8153Chipset.GetVendorIdRaw() && ProductIdRaw == g_Rtl8153Chipset.GetProductIdRaw())
         return &g_Rtl8153Chipset;
 
+    // TP-Link UE300 (2357:0601) is an RTL8153 under TP-Link's IDs, as listed
+    // in Linux r8152. Raw values are byte-swapped as read on PPC.
+    if (VendorIdRaw == 0x5723 && ProductIdRaw == 0x0106)
+        return &g_Rtl8153Chipset;
+
     if (VendorIdRaw == 0x950B && ProductIdRaw == 0x9017) {
         switch (DeviceRevision) {
             case 0x0100: return &g_Ax88179Chipset;
