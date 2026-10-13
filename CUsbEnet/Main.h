@@ -37,6 +37,13 @@
 #define USBENET_COALESCE_TITLE_SMALL_FRAMES 0
 #endif
 
+// Experimental: only frames up to DebugImmediateFrameSize (TCP ACKs and other
+// small frames) may share a USB transfer; full-size frames always go out one
+// per transfer. Limits transmit aggregation to the case downloads need.
+#ifndef USBENET_TX_AGGREGATE_SMALL_ONLY
+#define USBENET_TX_AGGREGATE_SMALL_ONLY 0
+#endif
+
 #ifndef USBENET_CONNECTION_LOGGING
 #define USBENET_CONNECTION_LOGGING 0
 #endif

@@ -58,6 +58,7 @@ These compile-time switches live in `CUsbEnet/Main.h`:
 | `USBENET_PERF_LOGGING` | 0 | Prints a five-second throughput summary (drops, USB transfer sizes, TX scheduling). |
 | `USBENET_AX88179_TX_AGGREGATION` | 0 | Experimental: several frames per USB transfer on the original AX88179. Only use it after full-data checks pass, for example with NetBench360's "All data" check. |
 | `USBENET_COALESCE_TITLE_SMALL_FRAMES` | 0 | Experimental, retail kernels: small title frames (mostly TCP ACKs during downloads to the Xbox) join an open transfer while other transmits are in flight, instead of each taking its own USB transfer. Needs transmit aggregation, so on the original AX88179 combine it with `USBENET_AX88179_TX_AGGREGATION`. |
+| `USBENET_TX_AGGREGATE_SMALL_ONLY` | 0 | Experimental: only frames up to 256 bytes (mostly TCP ACKs) share a USB transfer; full-size frames still go out one per transfer. Use with the two switches above to batch ACKs without packing full-size frames. |
 
 ## License
 

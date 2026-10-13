@@ -1298,6 +1298,12 @@ VOID __fastcall CUsbEnet::NicXmit(CNicUser* User, DWORD Unknown, PVOID Buffer, D
 			if (LowLatencyUser)
 				CanAppend = CanAppend && !ImmediateLowLatency && !IsImmediateLowLatencyXmitTracker(Tracker) && TrackerFrameCount < MaximumDebugFramesPerXmit;
 
+#if USBENET_TX_AGGREGATE_SMALL_ONLY
+			/* Every frame already in the tracker passed this check, so testing
+			 * the first one and the new one keeps the whole transfer small. */
+			CanAppend = CanAppend && Length <= DebugImmediateFrameSize && Tracker->FirstPacket->Length <= DebugImmediateFrameSize + Chipset->GetTransmitHeaderSize();
+#endif
+
 			if (CanAppend) {
 				SubmitTracker = FALSE;
 				goto FillFrame;
