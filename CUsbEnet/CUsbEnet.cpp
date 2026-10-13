@@ -106,6 +106,11 @@ static DWORD TxDpcRunCount;
 static DWORD TxCompletionRefillCount;
 static DWORD TxCompletionRefillTransferCount;
 static DWORD TxPendingHighWater;
+// Time spent in receive completion (including XNet delivery) and NicXmit, in
+// 50 MHz timebase ticks, and which hardware thread ran receive completion.
+static DWORD RxCompleteCpuTicks;
+static DWORD XmitCpuTicks;
+static DWORD RxCompleteProcessorCount[6];
 #endif
 static DWORD DiagnosticRxSubmitCount;
 static DWORD DiagnosticRxSubmitSequence;
@@ -167,6 +172,13 @@ static DWORD CalculateMbpsX100(DWORD Bytes, DWORD ElapsedMilliseconds) {
 }
 
 
+#if USBENET_PERF_LOGGING
+// The Xbox 360 timebase runs at 50 MHz.
+static DWORD CpuPermilleOfThread(DWORD Ticks, DWORD ElapsedMilliseconds) {
+	return ElapsedMilliseconds != 0 ? static_cast<DWORD>(static_cast<ULONGLONG>(Ticks) * 1000 / (static_cast<ULONGLONG>(ElapsedMilliseconds) * 50000)) : 0;
+}
+#endif
+
 static VOID PrintThroughputStats(DWORD CurrentTick, PXMIT_TRACKER Trackers, DWORD ActiveXmitCount, DWORD PendingXmitCount) {
 	if (ThroughputStatsTick == 0) {
 		ThroughputStatsTick = CurrentTick;
@@ -216,6 +228,7 @@ static VOID PrintThroughputStats(DWORD CurrentTick, PXMIT_TRACKER Trackers, DWOR
 		USBENET_PERF_PRINT("[usbenet]: RX routing: parsed=%u invalid=%u mcastFiltered=%u title=%u debug=%u multicast=%u promisc=%u broadcast=%u deliveredTitle=%u deliveredDebug=%u deliveredNone=%u\n", RxParsedFrameCount, RxInvalidFrameCount, RxMulticastFilteredCount, RxTitleUnicastFrameCount, RxDebugUnicastFrameCount, RxMulticastFrameCount, RxPromiscuousFrameCount, RxBroadcastFrameCount, RxTitleDeliveredCount, RxDebugDeliveredCount, RxNoDeliveryFrameCount);
 		USBENET_PERF_PRINT("[usbenet]: Transport diagnostics: controlQueued=%u TX submit=%u complete=%u errors=%u lastStatus=0x%08X; RX submit=%u submitErrors=%u complete=%u errors=%u zero=%u parserFailures=%u inFlight=%u flags=0x%08X\n", DiagnosticControlQueueCount, DiagnosticTxSubmitCount, DiagnosticTxCompleteCount, DiagnosticTxErrorCount, DiagnosticTxLastStatus, DiagnosticRxSubmitCount, DiagnosticRxSubmitErrorCount, DiagnosticRxCompleteCount, DiagnosticRxErrorCount, DiagnosticRxZeroLengthCount, DiagnosticRxParserFailureCount, RxInFlightCount, g_UsbEnet.Flags);
 #if USBENET_PERF_LOGGING
+		USBENET_PERF_PRINT("[usbenet]: CPU: rxComplete=%u.%u%% xmit=%u.%u%% of one thread; rxComplete on cpu0=%u cpu1=%u cpu2=%u cpu3=%u cpu4=%u cpu5=%u\n", CpuPermilleOfThread(RxCompleteCpuTicks, ElapsedMilliseconds) / 10, CpuPermilleOfThread(RxCompleteCpuTicks, ElapsedMilliseconds) % 10, CpuPermilleOfThread(XmitCpuTicks, ElapsedMilliseconds) / 10, CpuPermilleOfThread(XmitCpuTicks, ElapsedMilliseconds) % 10, RxCompleteProcessorCount[0], RxCompleteProcessorCount[1], RxCompleteProcessorCount[2], RxCompleteProcessorCount[3], RxCompleteProcessorCount[4], RxCompleteProcessorCount[5]);
 		USBENET_PERF_PRINT("[usbenet]: TX scheduling: entryDispatch=%u entryOther=%u direct=%u directPipeIdle=%u dispatchWait=%u deferredCpu=%u dpcQueued=%u dpcRuns=%u completionRefills=%u refillTransfers=%u pendingHigh=%u/%u directEnabled=%u\n", TxDispatchEntryCount, TxOtherIrqlEntryCount, TxDirectSubmitCount, TxDirectPipeIdleSubmitCount, TxDispatchWaitCount, TxDispatchWrongProcessorCount, TxDpcQueueCount, TxDpcRunCount, TxCompletionRefillCount, TxCompletionRefillTransferCount, TxPendingHighWater, MaximumPendingXmitCount, UsbEnetDirectXmitEnabled());
 #endif
 	}
@@ -265,6 +278,9 @@ static VOID PrintThroughputStats(DWORD CurrentTick, PXMIT_TRACKER Trackers, DWOR
 	TxCompletionRefillCount = 0;
 	TxCompletionRefillTransferCount = 0;
 	TxPendingHighWater = PendingXmitCount;
+	RxCompleteCpuTicks = 0;
+	XmitCpuTicks = 0;
+	memset(RxCompleteProcessorCount, 0, sizeof(RxCompleteProcessorCount));
 #endif
 	DiagnosticRxSubmitCount = 0;
 	DiagnosticRxSubmitErrorCount = 0;
@@ -1179,6 +1195,9 @@ VOID __fastcall CUsbEnet::NicFlushXmitQueue(CNicUser* User) {
 }
 
 VOID __fastcall CUsbEnet::NicXmit(CNicUser* User, DWORD Unknown, PVOID Buffer, DWORD Length, PVOID CompletionContext) {
+#if USBENET_PERF_LOGGING
+	unsigned __int64 XmitStart = __mftb();
+#endif
 	USBENET_LOG("NicXmit this=%p user=%p unknown=0x%08X buffer=%p length=%u completionContext=%p", this, User, Unknown, Buffer, Length, CompletionContext);
 	PXMIT_PACKET Packet;
 	PXMIT_PACKET PreviousPacket;
@@ -1439,6 +1458,9 @@ ReleaseLock:
 
 Complete:
 	User->NotifyXmitComplete(CompletionContext);
+#if USBENET_PERF_LOGGING
+	InterlockedExchangeAdd(reinterpret_cast<LONG*>(&XmitCpuTicks), static_cast<LONG>(__mftb() - XmitStart));
+#endif
 }
 
 VOID __fastcall CUsbEnet::NicTimerWaitForDeviceAddDpc(PKDPC Dpc, PVOID DeferredContext, PVOID SystemArgument1, PVOID SystemArgument2) {
@@ -1555,7 +1577,17 @@ VOID __fastcall CUsbEnet::AsyncCompletionRoutineBulkRecv(PUSBD_ASYNC_REQUEST Req
 
 	CUsbEnet* Context = static_cast<CUsbEnet*>(Request->Context);
 	TRAP_ASSERT(Context != NULL);
+#if USBENET_PERF_LOGGING
+	DWORD Processor = GetCurrentProcessorNumber();
+	unsigned __int64 Start = __mftb();
+#endif
 	Context->CompleteReceive(reinterpret_cast<PRECV_TRANSFER>(Request), Status);
+#if USBENET_PERF_LOGGING
+	InterlockedExchangeAdd(reinterpret_cast<LONG*>(&RxCompleteCpuTicks), static_cast<LONG>(__mftb() - Start));
+
+	if (Processor < 6)
+		InterlockedIncrement(reinterpret_cast<LONG*>(&RxCompleteProcessorCount[Processor]));
+#endif
 }
 
 VOID __fastcall CUsbEnet::AsyncCompletionRoutineInterruptStatus(PUSBD_ASYNC_REQUEST Request, NTSTATUS Status) {
@@ -2453,6 +2485,9 @@ VOID __fastcall CUsbEnet::Init(PUSBD_DEVICE_NODE DeviceNode, const PUSB_ENDPOINT
 	TxCompletionRefillCount = 0;
 	TxCompletionRefillTransferCount = 0;
 	TxPendingHighWater = PendingXmitCount;
+	RxCompleteCpuTicks = 0;
+	XmitCpuTicks = 0;
+	memset(RxCompleteProcessorCount, 0, sizeof(RxCompleteProcessorCount));
 #endif
 	DiagnosticRxSubmitCount = 0;
 	DiagnosticRxSubmitSequence = 0;

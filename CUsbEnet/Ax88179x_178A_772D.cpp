@@ -31,8 +31,15 @@ CAx88178A g_Ax88178AChipset;
 
 /* USB 2.0 gigabit bulk-in profile from Linux ax88179_178a. The size byte
  * limits device-side RX aggregation to 1024 * (0x16 + 2) = ReceiveBufferSize. */
-static BYTE Ax88179BulkInQueue[5] = { 7, 0x20, 3, 0x16, 0xFF };
-C_ASSERT(1024 * (0x16 + 2) == ReceiveBufferSize);
+#if USBENET_AX88179_RX_32K_UNTESTED
+#define AX88179_BULKIN_SIZE 0x1E
+#elif USBENET_AX88179_RX_26K
+#define AX88179_BULKIN_SIZE 0x18
+#else
+#define AX88179_BULKIN_SIZE 0x16
+#endif
+static BYTE Ax88179BulkInQueue[5] = { 7, 0x20, 3, AX88179_BULKIN_SIZE, 0xFF };
+C_ASSERT(1024 * (AX88179_BULKIN_SIZE + 2) == ReceiveBufferSize);
 static const BYTE Ax88179ChecksumControl = AX88179_CHECKSUM_IP | AX88179_CHECKSUM_TCP | AX88179_CHECKSUM_UDP | AX88179_CHECKSUM_TCPV6 | AX88179_CHECKSUM_UDPV6;
 static const BYTE Ax88179MonitorMode = AX88179_MONITOR_PMETYPE | AX88179_MONITOR_PMEPOL | AX88179_MONITOR_RWMP;
 static const BYTE Ax88179ReadTxFifoRequest = 0x81;

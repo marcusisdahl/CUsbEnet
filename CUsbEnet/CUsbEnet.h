@@ -9,7 +9,14 @@ enum {
     XMIT_PACKET_COUNT = 80,
     // 24 KiB matches the Linux ax88179_178a USB 2.0 gigabit bulk-in profile
     // (rx_urb_size = 1024 * (0x16 + 2)); fewer, fuller RX completions per MiB.
+    // The experimental AX88179 RX size switches enlarge it to match.
+#if USBENET_AX88179_RX_32K_UNTESTED
+    ReceiveBufferSize = 0x8000,
+#elif USBENET_AX88179_RX_26K
+    ReceiveBufferSize = 0x6800,
+#else
     ReceiveBufferSize = 0x6000,
+#endif
     // Chipsets whose hardware RX aggregation is tuned for the original buffers.
     LegacyReceiveAggregateSize = 0x4000,
     // 16 KiB TX buffers match the Linux r8152 aggregate size. Chipsets whose TX
