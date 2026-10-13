@@ -48,6 +48,8 @@ Alternatively, the plugin can be loaded and unloaded after boot but may encounte
 | Realtek RTL8153 v3-v6 |
 | Realtek RTL8153B v8/v9 |
 
+RTL8153 adapters are matched under Realtek's ID (0BDA:8153) and TP-Link's UE300 ID (2357:0601).
+
 ## Build options for throughput testing
 
 These compile-time switches live in `CUsbEnet/Main.h`:
