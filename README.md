@@ -111,7 +111,7 @@ All results are from one console uploading from PC to Xbox; the adapter rows use
 
 The maintainer has also seen up to 29 MiB/s FTP uploads with this combination.
 
-For comparison, the console's internal hard drive writes at about 57.5 MiB/s (measured with FastFTP's disk test), so it is not the limit. The 12x DVD drive reads at most about 15.9 MiB/s (rated speed at the outer edge of the disc, not measured), so FastFTP over CUsbEnet copies faster than the console can read a disc.
+For comparison, the console's internal hard drive writes at about 57.5 MiB/s (measured on the same console), so it is not the limit. The 12x DVD drive reads at most about 15.9 MiB/s (rated speed at the outer edge of the disc, not measured), so FastFTP over CUsbEnet copies faster than the console can read a disc.
 
 What changed in 1.1:
 
