@@ -15,7 +15,7 @@ CUsbEnet is a driver plugin. Once it is loaded, a supported USB Ethernet adapter
 Version 1.1 is tuned for speed. Together with **[FastFTP](https://github.com/marcusisdahl/Xbox360_FastFTP)**, it is the fastest way we know of to copy files to an Xbox 360 over FTP: about **28 MiB/s** measured on uploads, against about 19.5 MiB/s with Aurora's built-in FTP over the same adapter and about 10.5 MiB/s with normal FTP over the console's own 100 Mbit port.
 
 <p align="center">
-  <img src="docs/images/speed.png" alt="FTP upload speed from PC to Xbox: normal FTP over the Xbox's own 100 Mbit port at most 10.5 MiB/s, Aurora's built-in FTP over the USB adapter 19.5 MiB/s, FastFTP with CUsbEnet 1.1 acksmall 28 MiB/s" width="800">
+  <img src="docs/images/speed.png" alt="FTP upload speed from PC to Xbox: normal FTP over the Xbox's own 100 Mbit port at most 10.5 MiB/s, Aurora's built-in FTP over the USB adapter 19.5 MiB/s, FastFTP with CUsbEnet 1.1 acksmall 28 MiB/s; for comparison, the DVD drive at up to 15.9 MiB/s (12x rated) and the internal hard drive writing at 57.5 MiB/s" width="800">
 </p>
 
 CUsbEnet is experimental kernel-level homebrew. Read [Safety](#safety) before you install it.
@@ -110,6 +110,8 @@ All results are from one console uploading from PC to Xbox; the adapter rows use
 | FastFTP upload, CUsbEnet 1.1 acksmall | **about 28 MiB/s** |
 
 The maintainer has also seen up to 29 MiB/s FTP uploads with this combination.
+
+For comparison, the console's internal hard drive writes at about 57.5 MiB/s (measured with FastFTP's disk test), so it is not the limit. The 12x DVD drive reads at most about 15.9 MiB/s (rated speed at the outer edge of the disc, not measured), so FastFTP over CUsbEnet copies faster than the console can read a disc.
 
 What changed in 1.1:
 
