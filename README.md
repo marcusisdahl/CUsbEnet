@@ -12,10 +12,10 @@
 
 CUsbEnet is a driver plugin. Once it is loaded, a supported USB Ethernet adapter works like the console's own network port: Aurora, FTP servers, games and other apps use it without any changes.
 
-Version 1.1 is tuned for speed. Together with **[FastFTP](https://github.com/marcusisdahl/Xbox360-FastFTP)**, it is the fastest way we know of to copy files to an Xbox 360 over FTP: about **27.5 MiB/s** measured on uploads, against about 19.5 MiB/s with Aurora's built-in FTP on the same console.
+Version 1.1 is tuned for speed. Together with **[FastFTP](https://github.com/marcusisdahl/Xbox360_FastFTP)**, it is the fastest way we know of to copy files to an Xbox 360 over FTP: about **28 MiB/s** measured on uploads, against about 19.5 MiB/s with Aurora's built-in FTP over the same adapter and about 10.5 MiB/s with normal FTP over the console's own 100 Mbit port.
 
 <p align="center">
-  <img src="docs/images/speed.png" alt="FTP upload speed from PC to Xbox: Aurora's built-in FTP with CUsbEnet 1.0 at 19.5 MiB/s, FastFTP with CUsbEnet 1.1 acksmall at 27.5 MiB/s" width="800">
+  <img src="docs/images/speed.png" alt="FTP upload speed from PC to Xbox: normal FTP over the Xbox's own 100 Mbit port at most 10.5 MiB/s, Aurora's built-in FTP over the USB adapter 19.5 MiB/s, FastFTP with CUsbEnet 1.1 acksmall 28 MiB/s" width="800">
 </p>
 
 CUsbEnet is experimental kernel-level homebrew. Read [Safety](#safety) before you install it.
@@ -85,7 +85,7 @@ A USB 3.0 or gigabit adapter works, but the Xbox's USB 2.0 port sets the speed l
 
 ## Use it with FastFTP
 
-[FastFTP](https://github.com/marcusisdahl/Xbox360-FastFTP) is an FTP server for the Xbox 360 made alongside this driver. It writes to the disk **while** the network transfer is still running, so it can keep up with what CUsbEnet delivers. Aurora's built-in FTP can't.
+[FastFTP](https://github.com/marcusisdahl/Xbox360_FastFTP) is an FTP server for the Xbox 360 made alongside this driver. It writes to the disk **while** the network transfer is still running, so it can keep up with what CUsbEnet delivers. Aurora's built-in FTP can't.
 
 <p align="center">
   <img src="docs/images/fastftp-upload.png" alt="FastFTP receiving an upload at 26 MiB/s, with recent transfers at around 27 MiB/s" width="720">
@@ -99,16 +99,17 @@ FastFTP's network test also shows whether the network, the disk or the FTP clien
 
 ## Speed
 
-All results are from one console with a TP-Link UE306, uploading from PC to Xbox:
+All results are from one console uploading from PC to Xbox; the adapter rows use a TP-Link UE306:
 
 | Setup | Speed |
 |---|---|
+| Normal FTP, Xbox's own 100 Mbit port (no adapter) | at most about 10.5 MiB/s |
 | Aurora's built-in FTP, CUsbEnet 1.0 | about 19.5 MiB/s |
 | FastFTP network test, CUsbEnet 1.0 | about 20.7 MiB/s |
 | FastFTP network test, CUsbEnet 1.1 acksmall, all data checked | **27.66 MiB/s** |
-| FastFTP upload, CUsbEnet 1.1 acksmall | **about 27.5 MiB/s** |
+| FastFTP upload, CUsbEnet 1.1 acksmall | **about 28 MiB/s** |
 
-The maintainer has also seen 28–29 MiB/s FTP uploads with this combination.
+The maintainer has also seen up to 29 MiB/s FTP uploads with this combination.
 
 What changed in 1.1:
 
