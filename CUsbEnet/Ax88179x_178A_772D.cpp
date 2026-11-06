@@ -202,7 +202,9 @@ DWORD CAx88179_178A::GetTransmitHeaderSize() const {
 }
 
 DWORD CAx88179_178A::GetTransmitTerminatorSize() const {
-    return 0;
+    /* The one padding byte AppendTransmitFrame adds after a transfer that would
+     * end on a USB packet boundary. */
+    return 1;
 }
 
 BOOL CAx88179_178A::IsReady(CUsbEnet* Device) {
@@ -1544,14 +1546,28 @@ BOOL CAx88179_178A::AppendTransmitFrame(CUsbEnet* Device, PBYTE Buffer, DWORD Ca
     DWORD Header1 = Length;
     DWORD Header2 = 0;
     DWORD TransferLength = AggregateOffset + Required;
+    /* AX88179_TXHDR_PADDING tells the chip that one padding byte follows the
+     * frame, as Linux usbnet sends for a transfer that is a multiple of the
+     * packet size. Setting the flag without sending the byte makes the chip
+     * take the first byte of the next transfer as padding, which misaligns
+     * every header after it and stops transmit. */
+    BOOL AddTerminator = Device->TransmitMaxPacketSize != 0 && (TransferLength % Device->TransmitMaxPacketSize) == 0;
+    DWORD TerminatorLength = AddTerminator ? GetTransmitTerminatorSize() : 0;
+
+    if (Required + TerminatorLength > Capacity)
+        return FALSE;
+
     ++m_TxFrameSequence;
 
-    if (Device->TransmitMaxPacketSize != 0 && (TransferLength % Device->TransmitMaxPacketSize) == 0)
+    if (AddTerminator)
         Header2 |= AX88179_TXHDR_PADDING;
 
     *reinterpret_cast<UNALIGNED ULONG*>(Record) = _byteswap_ulong(Header1);
     *reinterpret_cast<UNALIGNED ULONG*>(Record + sizeof(DWORD)) = _byteswap_ulong(Header2);
     memcpy(Record + sizeof(DWORD) * 2, Frame, Length);
+
+    if (TerminatorLength != 0)
+        memset(Buffer + Required, 0, TerminatorLength);
 
     if (Ax88179ShouldLogDiagnosticEvent(m_TxFrameSequence) && Length >= 14) {
         const BYTE* Ethernet = static_cast<const BYTE*>(Frame);
@@ -1560,8 +1576,8 @@ BOOL CAx88179_178A::AppendTransmitFrame(CUsbEnet* Device, PBYTE Buffer, DWORD Ca
     }
 
     *FramedLength = Required;
-    *BytesWritten = Required;
-    *HasTerminator = FALSE;
+    *BytesWritten = Required + TerminatorLength;
+    *HasTerminator = AddTerminator;
     return TRUE;
 }
 

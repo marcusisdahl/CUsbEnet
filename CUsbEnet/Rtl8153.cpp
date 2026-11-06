@@ -1090,7 +1090,10 @@ BOOL CRtl8153::AppendTransmitFrame(CUsbEnet* Device, PBYTE Buffer, DWORD Capacit
     Descriptor->Options2 = 0;
     memcpy(reinterpret_cast<PBYTE>(Descriptor) + sizeof(RTL8153_TX_DESCRIPTOR), Frame, Length);
 
-    *FramedLength = Length;
+    /* FramedLength is the frame's whole record, alignment padding and
+     * descriptor included: CountXmitTrackerFrames subtracts each packet's
+     * length from the transfer length to find a tracker's frames. */
+    *FramedLength = Required;
     *BytesWritten = Required;
     *HasTerminator = FALSE;
     return TRUE;
